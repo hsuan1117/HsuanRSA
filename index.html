@@ -1,0 +1,217 @@
+<!--
+ Hsuan RSA Tool
+ * 版本: V1.0.0
+-->
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+		<script src="https://code.jquery.com/jquery-3.3.1.js"></script>
+		<link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+		<script src="js/vue.js"></script>
+		<script src="https://unpkg.com/element-ui/lib/index.js"></script>
+		<script src="js/CryptoJS/hybrid-crypto.min.js"></script>
+
+		<style>
+			@font-face {
+				font-family: FF;
+				src: url(https://cdn.jsdelivr.net/gh/justfont/open-huninn-font@master/font/jf-openhuninn-1.1.ttf);
+			}
+
+			#app {
+				font-family: FF, serif;
+			}
+		</style>
+		<title>Hsuan RSA</title>
+	</head>
+
+	<body>
+		<div id="app">
+			<el-container>
+				<el-header>Hsuan RSA</el-header>
+				<el-main>
+					<el-row>
+						<el-input-number v-model="keys.bytes" placeholder="金鑰位元數" :step="1024" controls-position="right"></el-input-number>
+						<el-button @click="genKey()">產生新金鑰</el-button>
+					</el-row>
+					<br>
+					<el-row>
+						<center>
+							<el-card class="box-card">
+								<div slot="header" class="clearfix">
+									<span>密鑰</span>
+								</div>
+								<div>
+									公鑰
+									<el-input v-model="keys.publicKey" placeholder="公鑰" type="textarea"></el-input>
+									私鑰
+									<el-input v-model="keys.privateKey" placeholder="私鑰" type="textarea"></el-input>
+								</div>
+							</el-card>
+						</center>
+					</el-row>
+					<br>
+
+					<el-row>
+						<center>
+							<el-card class="box-card">
+								<div slot="header" class="clearfix">
+									<span>加密訊息</span>
+								</div>
+								<div>
+									欲加密訊息
+									<el-input v-model="encrypt.message" placeholder="訊息" type="textarea"></el-input>
+									密文
+									<el-input v-model="encrypt.cipher" placeholder="訊息" type="textarea"></el-input>
+								</div>
+							</el-card>
+						</center>
+					</el-row>
+					<br>
+					<el-row>
+						<center>
+							<el-card class="box-card">
+								<div>
+									<el-button @click="sign()">簽名</el-button>&nbsp;
+									<el-button @click="unsign()">解密</el-button>&nbsp;
+									<el-button @click="verify()" disabled>驗證</el-button>
+								</div>
+							</el-card>
+						</center>
+					</el-row>
+					<br>
+				</el-main>
+			</el-container>
+		</div>
+	</body>
+
+	<script>
+		var crypt = new Crypt();
+		var rsa = new RSA();
+
+		var RSAApp = new Vue({
+			el: '#app',
+			data: function() {
+				return {
+					encrypt: {
+						message: "",
+						cipher: ""
+					},
+					keys: {
+						bytes: 1024,
+						publicKey: "",
+						privateKey: ""
+					}
+				}
+			},
+			methods: {
+				genKey() {
+					if(this.keys.bytes%1024!=0){
+						this.$message("位元數必須為1024之倍數")
+					}
+					let that = this
+					rsa.generateKeyPair(function(keyPair) {
+						RSAApp.keys.publicKey = keyPair.publicKey;
+						RSAApp.keys.privateKey = keyPair.privateKey;
+						that.$message("完成!")
+					}, RSAApp.keys.bytes);
+				},
+				sign() {
+					if(this.keys.publicKey == ""){
+						this.$message("未填入金鑰")
+					}
+					var encrypted = crypt.encrypt(this.keys.publicKey, this.encrypt.message);
+					this.encrypt.cipher = encrypted
+					const confirmText = ["按OK複製: ", encrypted];
+					const __Datas = [];
+					const h = this.$createElement;
+					for (const i in confirmText) {
+						__Datas.push(h('p', null, confirmText[i]));
+					}
+					this.$alert(h('div', null, __Datas), '完成', {
+						confirmButtonText: 'OK',
+						callback: () => {
+							let x = document.createElement("input")
+							x.setAttribute("value", encrypted)
+							document.body.appendChild(x)
+							x.select()
+							document.execCommand("copy")
+							document.body.removeChild(x)
+							this.$message("複製完成")
+						}
+					});
+				},
+				unsign() {
+					if(this.keys.privateKey == ""){
+						this.$message("未填入金鑰")
+					}
+					var decrypted = crypt.decrypt(this.keys.privateKey, this.encrypt.cipher);
+					this.encrypt.message = decrypted.message
+					const confirmText = ["按OK複製: ", decrypted.message];
+					const __Datas = [];
+					const h = this.$createElement;
+					for (const i in confirmText) {
+						__Datas.push(h('p', null, confirmText[i]));
+					}
+					this.$alert(h('div', null, __Datas), '完成', {
+						confirmButtonText: 'OK',
+						callback: () => {
+							let x = document.createElement("input")
+							x.setAttribute("value", decrypted.message)
+							document.body.appendChild(x)
+							x.select()
+							document.execCommand("copy")
+							document.body.removeChild(x)
+							this.$message("複製完成")
+						}
+					});
+
+				},
+				verify() {
+					if(this.keys.publicKey == ""){
+						this.$message("未填入金鑰")
+					}
+					var decrypted = crypt.decrypt(this.keys.privateKey, this.encrypt.cipher);
+					this.encrypt.message = decrypted.message
+					if (crypt.verify(
+							this.keys.publicKey,
+							decrypted.signature,
+							decrypted.message,
+						)) {
+						this.$message("驗證成功")
+					} else {
+						this.$message("驗證失敗")
+					}
+				},
+			},
+			computed: {
+
+			}
+		})
+	</script>
+	<style>
+		.el-header,
+		.el-footer {
+			background-color: #B3C0D1;
+			color: #333;
+			text-align: center;
+			line-height: 60px;
+		}
+
+		.el-main {
+			background-color: #E9EEF3;
+			color: #333;
+			text-align: center;
+			line-height: 20px;
+		}
+
+		.el-picker-panel .el-date-picker {
+			top: 5px !important;
+		}
+
+		.box-card {
+			width: 480px;
+		}
+	</style>
+
+</html>
